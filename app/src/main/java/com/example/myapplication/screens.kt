@@ -1,11 +1,13 @@
 package com.example.myapplication
 
-import AddVideoNote
+
 import Note
 import NoteType
 import addnotescreen
 import addrecordnote
+import AddVideoNote
 import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -57,6 +59,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.room.Room
+import com.example.myapplication.db.AppDatabase
 import com.example.myapplication.db.NoteDao
 
 class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
@@ -66,7 +70,21 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
 enum class Screen {
     Record, Video, Alert, Snote
 }
+object DatabaseSingleton {
+    private var INSTANCE: AppDatabase? = null
 
+    fun getDatabase(context: Context): AppDatabase {
+        if (INSTANCE == null) {
+            synchronized(AppDatabase::class) {
+                INSTANCE = Room.databaseBuilder(context.applicationContext,
+                    AppDatabase::class.java, "main_database.db")
+                    .fallbackToDestructiveMigration() // 在版本更新丢失数据时使用
+                    .build()
+            }
+        }
+        return INSTANCE!!
+    }
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesScreen() {
@@ -77,16 +95,15 @@ fun NotesScreen() {
     var showVideoDialog by remember { mutableStateOf(false) }
     var showDialog by remember { mutableStateOf(false) }
     val items = listOf("拍摄", "选择文件") // 选项列表
-    var viedooptype:Int = -1
-    @Composable
-    fun vediotypeclick(item:String){
-        if(item == "拍摄"){
-            AddVideoNote(optype = 0)
-        }
-        else if(item == "选择文件"){
-            AddVideoNote(optype = 1)
-        }
-        showDialog = false
+    var vediooptype:Int = -1
+    val context = LocalContext.current
+    val db=DatabaseSingleton.getDatabase(context)
+    val noteDao = db.noteDao()
+
+    if (vediooptype == 0) {
+        AddVideoNote(optype = 0)
+    } else if (vediooptype == 1) {
+        AddVideoNote(optype = 1)
     }
     Scaffold(
         bottomBar = {
@@ -143,7 +160,6 @@ fun NotesScreen() {
         }
 
     }
-
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
@@ -154,8 +170,11 @@ fun NotesScreen() {
                         Text(
                             text = item,
                             modifier = Modifier.clickable {
-                                showDialog = false // 关闭对话框
-
+                                when (item) {
+                                    "拍摄" -> vediooptype = 0
+                                    "选择文件" -> vediooptype = 1
+                                }
+                                showDialog = false
                             }
                         )
                     }
@@ -173,7 +192,6 @@ fun NotesScreen() {
 
 
 }
-
 @Composable
 fun NoteItem(note: Note) {
     Card(
