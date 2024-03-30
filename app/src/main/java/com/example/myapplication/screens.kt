@@ -6,10 +6,9 @@ import NoteType
 import addnotescreen
 import addrecordnote
 import android.annotation.SuppressLint
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.MediaMetadataRetriever
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,10 +22,13 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.BottomAppBarDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -47,17 +49,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.db.NoteDao
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
     val unarchivedNotes: LiveData<List<Note>> = noteDao.getUnarchivedNotes().asLiveData(viewModelScope.coroutineContext)
@@ -67,23 +67,38 @@ enum class Screen {
     Record, Video, Alert, Snote
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesScreen() {
     val noteViewModel: NoteViewModel = viewModel()
     // 使用 LiveData 的扩展函数 observeAsState 来观察 LiveData 对象
     val notes by noteViewModel.unarchivedNotes.observeAsState(initial = emptyList())
     var currentScreen by remember { mutableStateOf(Screen.Record) }
+    var showVideoDialog by remember { mutableStateOf(false) }
+    var showDialog by remember { mutableStateOf(false) }
+    val items = listOf("拍摄", "选择文件") // 选项列表
+    var viedooptype:Int = -1
+    @Composable
+    fun vediotypeclick(item:String){
+        if(item == "拍摄"){
+            AddVideoNote(optype = 0)
+        }
+        else if(item == "选择文件"){
+            AddVideoNote(optype = 1)
+        }
+        showDialog = false
+    }
     Scaffold(
         bottomBar = {
             BottomAppBar(
                 actions = {
-                    IconButton(onClick = { /* 处理record点击事件 */ }) {
+                    IconButton(onClick = { currentScreen = Screen.Record }) {
                         Icon(Icons.Default.Mic, contentDescription = "Record")
                     }
-                    IconButton(onClick = {  }) {
+                    IconButton(onClick = { showDialog = true }) {
                         Icon(Icons.Default.Videocam, contentDescription = "Video")
                     }
-                    IconButton(onClick = { /* 处理alert点击事件 */ }) {
+                    IconButton(onClick = {  }) {
                         Icon(Icons.Default.Notifications, contentDescription = "Alert")
                     }
                 },
@@ -98,9 +113,7 @@ fun NotesScreen() {
                 }
             )
         },
-    ) {
-
-        innerPadding ->
+    ) { innerPadding ->
         if (notes.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -123,11 +136,42 @@ fun NotesScreen() {
         }
         when (currentScreen) {
             Screen.Record -> addrecordnote()
-            Screen.Video -> AddVideoNote()
-            Screen.Alert -> AlertScreen()
+            Screen.Video -> {}
+            Screen.Alert -> {}
             Screen.Snote -> addnotescreen()
+
         }
+
     }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(text = "请选择") },
+            text = {
+                Column {
+                    items.forEach { item ->
+                        Text(
+                            text = item,
+                            modifier = Modifier.clickable {
+                                showDialog = false // 关闭对话框
+
+                            }
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                Button(onClick = { showDialog = false }) {
+                    Text("取消")
+                }
+            },
+            properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
+        )
+    }
+
+
 }
 
 @Composable
@@ -159,11 +203,12 @@ fun NoteItem(note: Note) {
                                 .fillMaxWidth(),
                             contentScale = ContentScale.Crop
                         )
-                    } ?: Text("图片无法加载")
+                    } ?: Text("视频预览无法加载")
+
                 }
                 else -> {
                     // 其他类型的处理
-                    Text(text = note.content)
+                    Text(text = note.title)
                 }
             }
         }
