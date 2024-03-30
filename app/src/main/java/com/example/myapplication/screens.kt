@@ -1,14 +1,20 @@
 package com.example.myapplication
 
+import AddVideoNote
 import Note
+import NoteType
+import addnotescreen
+import addrecordnote
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,10 +41,13 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LiveData
@@ -49,18 +58,21 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.db.NoteDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.compose.runtime.*
-import androidx.compose.ui.graphics.asImageBitmap
-import kotlinx.coroutines.withContext
 
 class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
     val unarchivedNotes: LiveData<List<Note>> = noteDao.getUnarchivedNotes().asLiveData(viewModelScope.coroutineContext)
 }
+
+enum class Screen {
+    Record, Video, Alert, Snote
+}
+
 @Composable
 fun NotesScreen() {
     val noteViewModel: NoteViewModel = viewModel()
     // 使用 LiveData 的扩展函数 observeAsState 来观察 LiveData 对象
     val notes by noteViewModel.unarchivedNotes.observeAsState(initial = emptyList())
+    var currentScreen by remember { mutableStateOf(Screen.Record) }
     Scaffold(
         bottomBar = {
             BottomAppBar(
@@ -68,7 +80,7 @@ fun NotesScreen() {
                     IconButton(onClick = { /* 处理record点击事件 */ }) {
                         Icon(Icons.Default.Mic, contentDescription = "Record")
                     }
-                    IconButton(onClick = { /* 处理video点击事件 */ }) {
+                    IconButton(onClick = {  }) {
                         Icon(Icons.Default.Videocam, contentDescription = "Video")
                     }
                     IconButton(onClick = { /* 处理alert点击事件 */ }) {
@@ -86,7 +98,9 @@ fun NotesScreen() {
                 }
             )
         },
-    ) { innerPadding ->
+    ) {
+
+        innerPadding ->
         if (notes.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -107,34 +121,12 @@ fun NotesScreen() {
                 }
             }
         }
-    }
-}
-@Composable
-fun VideoFrameImage(videoPath: String) {
-
-    val bitmapState = produceState<Bitmap?>(initialValue = null, videoPath) {
-        value = withContext(Dispatchers.IO) {
-            getVideoFrame(videoPath)
+        when (currentScreen) {
+            Screen.Record -> addrecordnote()
+            Screen.Video -> AddVideoNote()
+            Screen.Alert -> AlertScreen()
+            Screen.Snote -> addnotescreen()
         }
-    }
-
-    bitmapState.value?.let { bitmap ->
-        Image(
-            bitmap = bitmap.asImageBitmap(),
-            contentDescription = "Video Frame",
-            modifier = Modifier.fillMaxWidth(),
-            contentScale = ContentScale.Crop
-        )
-    } ?: Text("Loading video frame...")
-}
-suspend fun getVideoFrame(videoPath: String): Bitmap {
-    val retriever = MediaMetadataRetriever()
-    return withContext(Dispatchers.IO) { // 确保在IO线程执行
-        retriever.setDataSource(videoPath)
-        // 尝试获取视频的第一帧
-        retriever.getFrameAtTime(0) ?: throw IllegalArgumentException("Unable to extract frame.")
-    }.also {
-        retriever.release() // 释放资源
     }
 }
 
@@ -152,14 +144,22 @@ fun NoteItem(note: Note) {
         Column(modifier = Modifier.padding(16.dp)) {
             when (note.type) {
                 NoteType.VIDEO -> {
-                    // 如果是视频类型，显示视频帧
-                    val bitmap = remember { getVideoFrame(note.content) } // 假设note.content包含视频路径
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = "Video Frame",
-                        modifier = Modifier.fillMaxWidth(),
-                        contentScale = ContentScale.Crop
-                    )
+                    val context = LocalContext.current
+                    val frameFileName = note.content.replace("recorded_", "frame_")
+                        .replace("selected_", "frame_")
+                        .replace(".mp4", ".jpg")
+                    val framePath = context.filesDir.absolutePath + "/" + frameFileName
+                    val bitmap = BitmapFactory.decodeFile(framePath)
+                    bitmap?.let {
+                        Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = "Video Frame",
+                            modifier = Modifier
+                                .height(200.dp)
+                                .fillMaxWidth(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } ?: Text("图片无法加载")
                 }
                 else -> {
                     // 其他类型的处理
