@@ -3,29 +3,42 @@
 //noinspection UsingMaterialAndMaterial3Libraries
 //noinspection UsingMaterialAndMaterial3Libraries
 //noinspection UsingMaterialAndMaterial3Libraries
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
+import android.media.MediaRecorder
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.ViewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -41,13 +54,118 @@ import java.io.InputStream
 
 @Composable
 fun addnotescreen() {
+    var title by remember { mutableStateOf("") }
+    var content by remember { mutableStateOf("") }
+
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        OutlinedTextField(
+            value = title,
+            onValueChange = { title = it },
+            label = { Text("Title") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedTextField(
+            value = content,
+            onValueChange = { content = it },
+            label = { Text("Content") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = {  }) {
+            Text("Confirm")
+        }
+    }
+
 
 }
 
+class RecordNoteViewModel : ViewModel() {
+    var recordedAudioUri: Uri? = null
+    var noteText by mutableStateOf("")
+    var isRecording by mutableStateOf(false)
+}
 @Composable
-fun addrecordnote(){
+fun addrecordnote() {
+    var isRecording by remember { mutableStateOf(false) }
+    var text by remember { mutableStateOf("") }
+    var uri by remember { mutableStateOf<Uri?>(null) }
+    val context = LocalContext.current
+    val mediaRecorder by remember { mutableStateOf(MediaRecorder()) }
+    val recordLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                // Permission granted
+            } else {
+                // Handle permission denial
+            }
+        }
+    )
+    val db = DatabaseSingleton.getDatabase(context)
+    val noteDao = db.noteDao()
+    var gohome = remember{ mutableStateOf(false)}
+    if (gohome.value){
+        NotesScreen()
+    }
+    LaunchedEffect(key1 = true) {
+        recordLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
+    Column(modifier = Modifier.padding(PaddingValues(16.dp))) {
+        Button(onClick = {
+            if (isRecording) {
+                mediaRecorder.stop()
+                mediaRecorder.release()
+                isRecording = false
+            } else {
+                val outputFile = File(context.filesDir, "testRecording.3gp")
+                mediaRecorder.apply {
+                    setAudioSource(MediaRecorder.AudioSource.MIC)
+                    setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
+                    setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                    setOutputFile(outputFile.path)
+                    prepare()
+                    start()
+                    isRecording = true
+                    uri = Uri.fromFile(outputFile)
+                }
+            }
+        }) {
+            Text(if (isRecording) "Stop Recording" else "Start Recording")
+        }
+
+        TextField(
+            value = text,
+            onValueChange = { text = it },
+            label = { Text("添加一个标题") }
+        )
+
+        Button(onClick = {
+            val nt = Note(
+                type = NoteType.AUDIO,
+                title = text,
+                content = uri.toString(),
+                isArchived = false
+            )
+            gohome.value = true
+        }) {
+            Text("确认")
+        }
+
+    }
+
 
 }
+
 
 fun saveToInternalStorage(context: Context, inputStream: InputStream, fileName: String): String {
     val file = File(context.filesDir, fileName)
@@ -149,7 +267,7 @@ fun addvideotitle(para:Int) {
         var hasPermission = remember { mutableStateOf(false) }
         val db = DatabaseSingleton.getDatabase(context)
         val noteDao = db.noteDao()
-        // 根据optype确定所需的权限类型
+
         val requiredPermissionType = when (optype) {
             0 -> PermissionType.CAMERA // 对于视频录制需要摄像头权限
             1 -> PermissionType.STORAGE // 对于视频选择需要存储权限
