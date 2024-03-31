@@ -3,6 +3,7 @@
 //noinspection UsingMaterialAndMaterial3Libraries
 //noinspection UsingMaterialAndMaterial3Libraries
 //noinspection UsingMaterialAndMaterial3Libraries
+
 import android.Manifest
 import android.app.Activity
 import android.content.Context
@@ -21,11 +22,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.Text
-import androidx.compose.material.TextField
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -38,26 +39,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.ViewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.navigation.NavHostController
 import com.example.myapplication.CheckPermissions
 import com.example.myapplication.DatabaseSingleton
 import com.example.myapplication.NotesScreen
 import com.example.myapplication.PermissionType
 import com.example.myapplication.RequestPermissionsScreen
+import com.example.myapplication.db.Note
+import com.example.myapplication.db.NoteType
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 
 @Composable
-fun addnotescreen() {
+fun addnotescreen(navController: NavHostController) {
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
-
-
+    val context = LocalContext.current
+    val db = DatabaseSingleton.getDatabase(context)
+    val noteDao = db.noteDao()
+    var nt = Note(type= NoteType.TEXT,
+        content = "",
+        title="",
+        isArchived=false)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -69,32 +77,32 @@ fun addnotescreen() {
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
-            label = { Text("Title") },
+            label = { Text("添加一个标题") },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = content,
             onValueChange = { content = it },
-            label = { Text("Content") },
+            label = { Text("输入内容") },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = {  }) {
-            Text("Confirm")
+        Button(onClick = {
+            nt.content = content
+            nt.title = title
+            noteDao.insert(nt)
+        }) {
+            Text("确认")
         }
     }
 
 
+
 }
 
-class RecordNoteViewModel : ViewModel() {
-    var recordedAudioUri: Uri? = null
-    var noteText by mutableStateOf("")
-    var isRecording by mutableStateOf(false)
-}
 @Composable
-fun addrecordnote() {
+fun addrecordnote(navController: NavHostController) {
     var isRecording by remember { mutableStateOf(false) }
     var text by remember { mutableStateOf("") }
     var uri by remember { mutableStateOf<Uri?>(null) }
@@ -113,9 +121,7 @@ fun addrecordnote() {
     val db = DatabaseSingleton.getDatabase(context)
     val noteDao = db.noteDao()
     var gohome = remember{ mutableStateOf(false)}
-    if (gohome.value){
-        NotesScreen()
-    }
+
     LaunchedEffect(key1 = true) {
         recordLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
@@ -156,9 +162,13 @@ fun addrecordnote() {
                 content = uri.toString(),
                 isArchived = false
             )
+            noteDao.insert(nt)
             gohome.value = true
         }) {
             Text("确认")
+        }
+        if (gohome.value){
+            NotesScreen()
         }
 
     }
@@ -228,14 +238,14 @@ fun VideoPlayer(context: Context, videoUri: String) {
     )
 }
 @Composable
-fun addvideotitle(para:Int) {
+fun addvideotitle(para:Int,navController: NavHostController) {
     val context = LocalContext.current
     val db = DatabaseSingleton.getDatabase(context)
     val noteDao = db.noteDao()
     var nt = noteDao.getNoteById(para)
 
     var title by remember { mutableStateOf("") }
-    var gohome = remember{ mutableStateOf(false)}
+
     Column {
         // Video Player
         VideoPlayer(context = context, videoUri = nt.content)
@@ -252,17 +262,15 @@ fun addvideotitle(para:Int) {
         )
 
         FilledTonalButton(onClick = {
-            gohome.value=true
+            navController.navigate("notes")
         }) {
             Text("确认")
         }
     }
-    if (gohome.value == true){
-        NotesScreen()
-    }
+
 }
     @Composable
-    fun AddVideoNote(optype: Int) {
+    fun AddVideoNote(navController: NavHostController, optype: Int) {
         val context = LocalContext.current
         var hasPermission = remember { mutableStateOf(false) }
         val db = DatabaseSingleton.getDatabase(context)
@@ -310,7 +318,7 @@ fun addvideotitle(para:Int) {
                     }
                 }
                 recordVideoLauncher.launch(Intent(MediaStore.ACTION_VIDEO_CAPTURE))
-                addvideotitle(new_code)
+                addvideotitle(new_code,navController)
             } else if (optype == 1) {
                 // 初始化视频选择启动器
                 val pickVideoLauncher = rememberLauncherForActivityResult(
@@ -330,7 +338,7 @@ fun addvideotitle(para:Int) {
                     }
                 }
                 pickVideoLauncher.launch("video/*")
-                addvideotitle(new_code)
+                addvideotitle(new_code,navController)
             }
         } else {
             requiredPermissionType?.let {

@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsKotlinAndroid)
-    id("com.google.devtools.ksp")
+    kotlin("kapt")
 }
 
 android {
@@ -91,8 +91,9 @@ dependencies {
 
 
     implementation ("androidx.room:room-runtime:$room_version")
-    annotationProcessor ("androidx.room:room-compiler:$room_version") // 使用annotationProcessor而不是kapt
-
+    annotationProcessor("androidx.room:room-compiler:$room_version")
+    // To use Kotlin Symbol Processing (KSP)
+    kapt("androidx.room:room-compiler:$room_version")
     // Kotlin Extensions and Coroutines support for Room
     implementation ("androidx.room:room-ktx:$room_version")
 

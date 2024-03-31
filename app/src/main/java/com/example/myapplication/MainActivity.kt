@@ -28,39 +28,67 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
-            noteapp()
+            val navController = rememberNavController()
+            MaterialTheme {
+                noteapp(navController = navController)
+            }
         }
     }
 }
-enum class DrawerScreens(val displayName: String) {
-    Notes("笔记"),
-    Todo("待办"),
-    Archived("已归档"),
-    Screen("");
-}
+    enum class DrawerScreens(val displayName: String) {
+        Notes("笔记"),
+        Todo("待办"),
+        Archived("已归档"),
+        Screen("")
+    }
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "CoroutineCreationDuringComposition")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun noteapp() {
+fun noteapp(navController: NavHostController) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var currentScreen by remember { mutableStateOf(DrawerScreens.Notes) }
     val navController = rememberNavController()
 
+
     MaterialTheme {
-        Scaffold(
-            topBar = {
-                if (currentScreen != DrawerScreens.Screen) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet {
+                    Text("NAV", modifier = Modifier.padding(16.dp))
+                    Divider()
+                    DrawerScreens.values().forEach { screen ->
+                        val isSelected = screen == currentScreen
+                        NavigationDrawerItem(
+                            label = { Text(text = screen.displayName) },
+                            selected = isSelected,
+                            onClick = {
+                                currentScreen = screen
+
+                                scope.launch { drawerState.close() }
+                            }
+
+                        )
+                    }
+
+                }
+            }
+        ) {
+            Scaffold(
+                topBar = {
+
                     TopAppBar(
                         title = { Text(text = currentScreen.displayName) },
                         navigationIcon = {
@@ -74,50 +102,31 @@ fun noteapp() {
                             }
                         }
                     )
-                }
 
-            }
-        ) {
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                drawerContent = {
-                    ModalDrawerSheet {
-                        Text("NAV", modifier = Modifier.padding(16.dp))
-                        Divider()
-                        DrawerScreens.values().forEach { screen ->
-                            val isSelected = screen == currentScreen
-                            NavigationDrawerItem(
-                                label = { Text(text = screen.displayName) },
-                                selected = isSelected,
-                                onClick = {
-                                    currentScreen = screen
-                                    scope.launch { drawerState.close() }
-                                }
-                            )
-                        }
-                    }
+
                 }
             ) {
-                when (currentScreen) {
-                    DrawerScreens.Notes -> NotesScreen()
-                    DrawerScreens.Todo -> TodoScreen()
-                    DrawerScreens.Archived -> ArchivedScreen()
-                    DrawerScreens.Screen -> otherscreen()
-                }
+
+            }
+            when (currentScreen) {
+                DrawerScreens.Notes -> NotesScreen()
+                DrawerScreens.Todo -> TodoScreen()
+                DrawerScreens.Archived -> ArchivedScreen()
+                DrawerScreens.Screen -> otherscreen()
             }
         }
+
     }
 
 }
+
+
+
 @Composable
 fun otherscreen() {
     //各自渲染
 }
 
-@Preview
-@Composable
-fun PreviewApp() {
-    noteapp()
-}
+
 
 

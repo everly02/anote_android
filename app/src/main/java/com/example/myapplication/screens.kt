@@ -1,11 +1,6 @@
 package com.example.myapplication
 
 
-import Note
-import NoteType
-import addnotescreen
-import addrecordnote
-import AddVideoNote
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.BitmapFactory
@@ -30,7 +25,6 @@ import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -56,20 +50,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.room.Room
 import com.example.myapplication.db.AppDatabase
+import com.example.myapplication.db.Note
 import com.example.myapplication.db.NoteDao
+import com.example.myapplication.db.NoteType
 
-class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
+class NoteViewModel(noteDao: NoteDao) : ViewModel() {
     val unarchivedNotes: LiveData<List<Note>> = noteDao.getUnarchivedNotes().asLiveData(viewModelScope.coroutineContext)
 }
 
-enum class Screen {
-    Record, Video, Alert, Snote
-}
 object DatabaseSingleton {
     private var INSTANCE: AppDatabase? = null
 
@@ -85,31 +79,38 @@ object DatabaseSingleton {
         return INSTANCE!!
     }
 }
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun NotesScreen() {
-    val noteViewModel: NoteViewModel = viewModel()
+
     // 使用 LiveData 的扩展函数 observeAsState 来观察 LiveData 对象
-    val notes by noteViewModel.unarchivedNotes.observeAsState(initial = emptyList())
-    var currentScreen by remember { mutableStateOf(Screen.Record) }
-    var showVideoDialog by remember { mutableStateOf(false) }
+
     var showDialog by remember { mutableStateOf(false) }
     val items = listOf("拍摄", "选择文件") // 选项列表
-    var vediooptype:Int = -1
-    val context = LocalContext.current
-    val db=DatabaseSingleton.getDatabase(context)
-    val noteDao = db.noteDao()
 
-    if (vediooptype == 0) {
-        AddVideoNote(optype = 0)
-    } else if (vediooptype == 1) {
-        AddVideoNote(optype = 1)
-    }
+    val context = LocalContext.current
+
+    val noteViewModel: NoteViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @SuppressLint("SuspiciousIndentation")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                if (modelClass.isAssignableFrom(NoteViewModel::class.java)) {
+                    @Suppress("UNCHECKED_CAST")
+                    val db = DatabaseSingleton.getDatabase(context)
+                    val noteDao = db.noteDao()
+                        return NoteViewModel(noteDao) as T
+                }
+                throw IllegalArgumentException("Unknown ViewModel class")
+            }
+        }
+    )
+    val notes by noteViewModel.unarchivedNotes.observeAsState(initial = emptyList())
+
     Scaffold(
         bottomBar = {
             BottomAppBar(
                 actions = {
-                    IconButton(onClick = { currentScreen = Screen.Record }) {
+                    IconButton(onClick = {  }) {
                         Icon(Icons.Default.Mic, contentDescription = "Record")
                     }
                     IconButton(onClick = { showDialog = true }) {
@@ -121,7 +122,7 @@ fun NotesScreen() {
                 },
                 floatingActionButton = {
                     FloatingActionButton(
-                        onClick = { /* do something */ },
+                        onClick = {  },
                         containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
                         elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
                     ) {
@@ -151,13 +152,7 @@ fun NotesScreen() {
                 }
             }
         }
-        when (currentScreen) {
-            Screen.Record -> addrecordnote()
-            Screen.Video -> {}
-            Screen.Alert -> {}
-            Screen.Snote -> addnotescreen()
 
-        }
 
     }
     if (showDialog) {
@@ -171,8 +166,7 @@ fun NotesScreen() {
                             text = item,
                             modifier = Modifier.clickable {
                                 when (item) {
-                                    "拍摄" -> vediooptype = 0
-                                    "选择文件" -> vediooptype = 1
+
                                 }
                                 showDialog = false
                             }

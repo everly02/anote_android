@@ -1,6 +1,5 @@
 package com.example.myapplication.db
 
-import Note
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
