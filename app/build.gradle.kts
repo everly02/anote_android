@@ -106,4 +106,5 @@ dependencies {
     implementation ("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     // Coroutine支持的LiveData
     implementation ("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
 }
