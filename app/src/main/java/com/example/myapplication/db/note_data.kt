@@ -9,6 +9,7 @@ data class Note(
     @ColumnInfo(name = "type") val type: NoteType,
     @ColumnInfo(name="title") var title: String,
     @ColumnInfo(name = "content") var content: String,//文本串或文件路径
+    @ColumnInfo(name = "previewImagePath") var previewImage: String? = null,
     @ColumnInfo(name = "is_archived") val isArchived: Boolean
 )
 

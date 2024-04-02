@@ -118,20 +118,14 @@ fun MainScreen() {
                 composable("notes") { NotesScreen(navController) }
                 composable("todo") { TodoScreen(navController) }
                 composable("archived") { ArchivedScreen(navController) }
-                composable("addv/{optype}") { backStackEntry ->
-                    val optype = backStackEntry.arguments?.getString("optype")?.toInt() ?: 0 // 默认值为 0
-                    AddVideoNote(navController = navController, optype = optype)
-                }
+
                 composable("addr"){ addrecordnote(navController) }
                 composable("addn"){ addnotescreen(navController) }
                 composable("note_detail/{id}"){backStackEntry ->
                     val id = backStackEntry.arguments?.getString("id")?.toInt() ?: -1
                     noteviewer(navController,id)
                 }
-                composable("addvt/{id}"){backStackEntry ->
-                    val id = backStackEntry.arguments?.getString("id")?.toInt() ?: -1
-                    addvideotitle(para =id , navController = navController )
-                }
+
             }
         }
     }

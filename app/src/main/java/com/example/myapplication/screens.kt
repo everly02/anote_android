@@ -1,13 +1,16 @@
 package com.example.myapplication
 
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,7 +48,6 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +58,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -68,7 +71,6 @@ import com.example.myapplication.db.AppDatabase
 import com.example.myapplication.db.Note
 import com.example.myapplication.db.NoteDao
 import com.example.myapplication.db.NoteType
-import kotlinx.coroutines.launch
 
 class NoteViewModel(noteDao: NoteDao) : ViewModel() {
     val unarchivedNotes: LiveData<List<Note>> = noteDao.getUnarchivedNotes().asLiveData(viewModelScope.coroutineContext)
@@ -92,8 +94,56 @@ object DatabaseSingleton {
 }
 
 @Composable
+fun PermissionExplanationDialog(showDialog: Boolean, onUpdateShowDialog: (Boolean) -> Unit) {
+    val context = LocalContext.current
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                // 用户点击对话框外部时触发，更新对话框显示状态
+                onUpdateShowDialog(false)
+            },
+            title = {
+                Text(text = "权限请求")
+            },
+            text = {
+                Text("我们需要照相机权限来继续。请在设置中授权。")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // 导航到应用设置页面
+                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
+                        context.startActivity(intent)
+                        onUpdateShowDialog(false) // 关闭对话框
+                    }
+                ) {
+                    Text("去设置")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { onUpdateShowDialog(false) }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+}
+
+
+fun hasCameraPermission(context: Context): Boolean {
+    return ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.CAMERA
+    ) == PackageManager.PERMISSION_GRANTED
+}
+
+
+@SuppressLint("QueryPermissionsNeeded")
+@Composable
 fun NotesScreen(nav:NavController) {
-    Log.d("notescreen running","yes")
     // 使用 LiveData 的扩展函数 observeAsState 来观察 LiveData 对象
 
     var showDialog by remember { mutableStateOf(false) }
@@ -115,12 +165,8 @@ fun NotesScreen(nav:NavController) {
             }
         }
     )
-
     val db = DatabaseSingleton.getDatabase(context)
     val noteDao = db.noteDao()
-    val coroutineScope = rememberCoroutineScope()
-    val viewModel: EditorViewModel = viewModel(factory = EditorViewModelFactory(noteDao))
-    var new_code = 0
 
     val notes by noteViewModel.unarchivedNotes.observeAsState(initial = emptyList())
 
@@ -178,66 +224,30 @@ fun NotesScreen(nav:NavController) {
         }
 
     }
+    var addtitle = remember {
+        mutableStateOf(false)
+    }
+
+    var showpermissiondia= remember { mutableStateOf(false)}
     if (showDialog) {
-        Log.d("dialog showed","showed")
-        val recordVideoLauncher = rememberLauncherForActivityResult(
+
+
+        var vaddress=""
+        val videoCaptureLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult()
-        ) {
-            result ->
+        ) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
-                Log.d("IF VEDIO TAKEN SUCCEEDED","YE")
-                result.data?.data?.let { uri ->
-                    // 生成文件名
-                    val fileName = "recorded_${System.currentTimeMillis()}.mp4"
-                    val filePath = saveVideoToInternalStorage(context, uri, fileName)
-                    val newNote = Note(
-                        type = NoteType.VIDEO,
-                        title = "default title video",
-                        content = filePath,
-                        isArchived = false
-                    )
-                    Log.d("newNote over","over")
-                    new_code = newNote.id
-                    Log.d("about to start coroutinescoupe","about")
-                    coroutineScope.launch {
-                        try {
-
-                            // 假设 insert_nt 是正确定义的，并且可以正确执行
-                            viewModel.insert_nt(newNote)
-                            // 操作成功后的逻辑，如导航
-                            nav.navigate("addvt/$new_code")
-                        } catch (e: Exception) {
-                            Log.e("RecordVideo", "Failed to insert note or navigate", e)
-                            // 处理异常，如显示错误消息
-
-                        }
-                    }
-                }
+                Log.d("OKOKOKOKOKOKOKOK","YEEEEEEEEEEEEEEEEE")
+                val videoUri: Uri? = result.data?.data
+                vaddress = videoUri.toString()
+                addtitle.value=true
             }
             else{
-                Log.d("IF VEDIO TAKEN SUCCEEDED","NO")
+                Log.d("OKOKOKOKOKOKOKOK","NNONONONONONONONONONO")
             }
         }
 
-        val pickVideoLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent()
-        ) { uri: Uri? ->
-            uri?.let {
-                val fileName = "selected_${System.currentTimeMillis()}.mp4"
-                val filePath = saveVideoToInternalStorage(context, uri, fileName)
-                val newNote = Note(
-                    type = NoteType.VIDEO,
-                    title = "default title video",
-                    content = filePath,
-                    isArchived = false
-                )
-                coroutineScope.launch {
-                    viewModel.insert_nt(newNote)
-                    Log.d("if database vedio inserting done","it is done")
-                }
-                new_code = newNote.id
-            }
-        }
+        val videoIntent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text(text = "请选择") },
@@ -250,13 +260,24 @@ fun NotesScreen(nav:NavController) {
                                 .clickable {
                                     when (item) {
                                         "拍摄" -> {
-                                            recordVideoLauncher.launch(Intent(MediaStore.ACTION_VIDEO_CAPTURE))
-                                            nav.navigate("addvt/$new_code")
+
+                                            showDialog = false
+                                            if (!hasCameraPermission(context)) {
+                                                // 如果没有相机权限，显示对话框
+                                                showpermissiondia.value = true
+                                            } else {
+                                                if (videoIntent.resolveActivity(context.packageManager) != null) {
+                                                    videoCaptureLauncher.launch(videoIntent)
+                                                    addtitle.value=true
+                                                } else {
+                                                    // 没有找到合适的应用来处理录制
+                                                }
+                                            }
+
                                         }
 
                                         "选择文件" -> {
-                                            pickVideoLauncher.launch("video/*")
-                                            nav.navigate("addvt/$new_code")
+
                                         }
                                     }
                                     showDialog = false
@@ -275,9 +296,15 @@ fun NotesScreen(nav:NavController) {
             },
             properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
         )
+        if(showpermissiondia.value == true){
+            PermissionExplanationDialog(showDialog = true) {
+            }
+        }
+        if (addtitle.value) {
+            // 当addTitle为true时，渲染addvedioscreen
+            addvedioscreen(addr=vaddress)
+        }
     }
-
-
 }
 @Composable
 fun NoteItem(note: Note,onClick: () -> Unit) {
@@ -296,10 +323,8 @@ fun NoteItem(note: Note,onClick: () -> Unit) {
             when (note.type) {
                 NoteType.VIDEO -> {
                     val context = LocalContext.current
-                    val frameFileName = note.content.replace("recorded_", "frame_")
-                        .replace("selected_", "frame_")
-                        .replace(".mp4", ".jpg")
-                    val framePath = context.filesDir.absolutePath + "/" + frameFileName
+
+                    val framePath = note.previewImage
                     val bitmap = BitmapFactory.decodeFile(framePath)
                     bitmap?.let {
                         Image(

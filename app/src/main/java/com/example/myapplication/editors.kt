@@ -7,14 +7,13 @@ package com.example.myapplication
 import android.Manifest
 import android.app.Activity
 import android.content.Context
-import android.graphics.Bitmap
-import android.media.MediaMetadataRetriever
 import android.media.MediaRecorder
 import android.net.Uri
-import android.os.Build
+import android.util.Log
+import android.widget.MediaController
+import android.widget.VideoView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,7 +27,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -51,14 +49,12 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import captureFrameAndSaveAsImage
 import com.example.myapplication.db.Note
 import com.example.myapplication.db.NoteDao
 import com.example.myapplication.db.NoteType
 import kotlinx.coroutines.launch
 import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.InputStream
 
 class EditorViewModelFactory(private val noteDao: NoteDao) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -85,56 +81,65 @@ class EditorViewModel(private val dao:NoteDao): ViewModel() {
         }
     }
 }
+
 @Composable
-fun addvideotitle(para:Int,navController: NavHostController) {
+fun addvedioscreen(addr:String){
+    Log.d("if reached","yes")
     val context = LocalContext.current
     val db = DatabaseSingleton.getDatabase(context)
     val noteDao = db.noteDao()
-    var nt by remember { mutableStateOf<Note?>(null) }
-    val coroutineScope = rememberCoroutineScope()
-    val viewModel: EditorViewModel = viewModel(factory = EditorViewModelFactory(noteDao))
-    // 使用LaunchedEffect启动协程调用挂起函数
-    LaunchedEffect(key1 = para) {
-        nt = viewModel.getNoteById(para) // 确保这是在viewModel内部合适地处理
-    }
+    var viewmodel = EditorViewModel(noteDao)
 
-    var title by remember { mutableStateOf("") }
-
-    Column {
-        // Video Player
-        nt?.let { VideoPlayer(context = context, videoUri = it.content) }
-
-        // TextField for Title
-        TextField(
-            value = title,
-            onValueChange = {
-                title = it
-                nt ?.title = title
-            },
+    var nt = Note(type= NoteType.VIDEO,
+        content = addr,
+        title="",
+        isArchived=false)
+    val frameaddress:String = (captureFrameAndSaveAsImage(context,Uri.parse(addr))).toString()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        OutlinedTextField(
+            value = "",
+            onValueChange = { nt.title = it },
             label = { Text("添加一个标题") },
             modifier = Modifier.fillMaxWidth()
-                                .padding(8.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 视频播放器
+
+        AndroidView(
+            factory = { ctx ->
+                VideoView(ctx).apply {
+                    val mediaController = MediaController(ctx)
+                    mediaController.setAnchorView(this)
+                    setMediaController(mediaController)
+                    setVideoURI(Uri.parse(addr))
+                    requestFocus()
+                    start()
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(350.dp) // 设置视频播放器的高度
         )
 
-        FilledTonalButton(onClick = {
-            coroutineScope.launch {
-                nt?.let { viewModel.update_nt(it) }
-            }
-            navController.navigate("notes")
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = {
+            nt.content = addr
+            nt.previewImage = frameaddress
+            viewmodel.insert_nt(nt)
         }) {
             Text("确认")
         }
     }
-
-}
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-@Composable
-fun AddVideoNote(optype: Int, navController: NavHostController) {
+    }
 
 
-
-
-}
 @Composable
 fun addnotescreen(navi:NavController) {
     var title by remember { mutableStateOf("") }
@@ -142,7 +147,10 @@ fun addnotescreen(navi:NavController) {
     val context = LocalContext.current
     val db = DatabaseSingleton.getDatabase(context)
     val noteDao = db.noteDao()
-    var viewmodel = EditorViewModel(noteDao)
+
+    val viewmodel: EditorViewModel = viewModel(
+        factory = EditorViewModelFactory(noteDao)
+    )
 
     var nt = Note(type= NoteType.TEXT,
         content = "",
@@ -181,7 +189,6 @@ fun addnotescreen(navi:NavController) {
             Text("确认")
         }
     }
-
 }
 
 @Composable
@@ -266,44 +273,6 @@ fun addrecordnote(navi: NavHostController) {
     }
 
 
-}
-
-
-fun saveToInternalStorage(context: Context, inputStream: InputStream, fileName: String): String {
-    val file = File(context.filesDir, fileName)
-    try {
-        FileOutputStream(file).use { output ->
-            inputStream.copyTo(output)
-        }
-    } catch (e: IOException) {
-        e.printStackTrace()
-        return ""
-    }
-    return file.absolutePath
-}
-fun saveVideoToInternalStorage(context: Context, uri: Uri, fileName: String): String {
-    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-        val filePath = saveToInternalStorage(context, inputStream, fileName)
-        // 保存视频第一帧
-        saveFirstFrameToInternalStorage(context, uri, "frame_${System.currentTimeMillis()}.jpg")
-        return filePath
-    }
-    return ""
-}
-fun saveFirstFrameToInternalStorage(context: Context, videoUri: Uri, frameFileName: String) {
-    val retriever = MediaMetadataRetriever()
-    try {
-        retriever.setDataSource(context, videoUri)
-        val bitmap = retriever.getFrameAtTime(0)
-        val frameFile = File(context.filesDir, frameFileName)
-        FileOutputStream(frameFile).use { out ->
-            bitmap?.compress(Bitmap.CompressFormat.JPEG, 100, out)
-        }
-    } catch (e: Exception) {
-        e.printStackTrace()
-    } finally {
-        retriever.release()
-    }
 }
 
 @Composable
