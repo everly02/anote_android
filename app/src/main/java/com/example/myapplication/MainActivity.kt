@@ -34,9 +34,11 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.myapplication.db.Note
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -121,6 +123,11 @@ fun MainScreen() {
 
                 composable("addr"){ addrecordnote(navController) }
                 composable("addn"){ addnotescreen(navController) }
+                composable("addv/{uri}",arguments = listOf(navArgument("uri") { type = NavType.StringType })){
+                    backStackEntry ->
+                    val videoAddr = backStackEntry.arguments?.getString("uri") ?: ""
+                    addvedioscreen(videoAddr, navController)
+                }
                 composable("note_detail/{id}"){backStackEntry ->
                     val id = backStackEntry.arguments?.getString("id")?.toInt() ?: -1
                     noteviewer(navController,id)

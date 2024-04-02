@@ -7,11 +7,11 @@ package com.example.myapplication
 import android.Manifest
 import android.app.Activity
 import android.content.Context
+import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
 import android.media.MediaRecorder
 import android.net.Uri
-import android.util.Log
-import android.widget.MediaController
-import android.widget.VideoView
+import android.os.Environment
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -49,12 +49,15 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
-import captureFrameAndSaveAsImage
 import com.example.myapplication.db.Note
 import com.example.myapplication.db.NoteDao
 import com.example.myapplication.db.NoteType
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class EditorViewModelFactory(private val noteDao: NoteDao) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -81,65 +84,111 @@ class EditorViewModel(private val dao:NoteDao): ViewModel() {
         }
     }
 }
-
 @Composable
-fun addvedioscreen(addr:String){
-    Log.d("if reached","yes")
+fun VideoPreview(addr: Uri) {
+    val context = LocalContext.current
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            val mediaItem = MediaItem.fromUri(addr)
+            setMediaItem(mediaItem)
+            prepare()
+        }
+    }
+
+    AndroidView(
+        factory = { ctx ->
+            PlayerView(ctx).apply {
+                player = exoPlayer
+                useController = true // 显示控制器
+            }
+        },
+        modifier = Modifier.fillMaxWidth(),
+        update = { view ->
+            view.player = exoPlayer
+        }
+    )
+
+    DisposableEffect(Unit) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
+}
+fun captureFrameAndSave(context: Context, videoUriString: String): Uri? {
+    val retriever = MediaMetadataRetriever()
+    try {
+        // 使用MediaMetadataRetriever从视频Uri获取帧
+        retriever.setDataSource(context, Uri.parse(videoUriString))
+        val frame: Bitmap? = retriever.getFrameAtTime()
+
+        frame?.let {
+            // 创建图片文件
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val imageFileName = "JPEG_${timestamp}_"
+            val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+            val imageFile = File.createTempFile(
+                imageFileName, /* prefix */
+                ".jpg", /* suffix */
+                storageDir /* directory */
+            )
+
+            // 将帧保存为图片
+            FileOutputStream(imageFile).use { out ->
+                frame.compress(Bitmap.CompressFormat.JPEG, 100, out)
+            }
+
+            // 返回保存的图片文件的Uri
+            return Uri.fromFile(imageFile)
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    } finally {
+        retriever.release()
+    }
+    return null
+}
+@Composable
+fun addvedioscreen(addr: String, navi: NavHostController){
+    var title by remember { mutableStateOf("") }
     val context = LocalContext.current
     val db = DatabaseSingleton.getDatabase(context)
     val noteDao = db.noteDao()
-    var viewmodel = EditorViewModel(noteDao)
-
-    var nt = Note(type= NoteType.VIDEO,
+    val viewmodel: EditorViewModel = viewModel(
+        factory = EditorViewModelFactory(noteDao)
+    )
+    val pre_img= captureFrameAndSave(context,addr).toString()
+    var nt = Note(type= NoteType.TEXT,
         content = addr,
         title="",
+        previewImage = pre_img,
         isArchived=false)
-    val frameaddress:String = (captureFrameAndSaveAsImage(context,Uri.parse(addr))).toString()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
+
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         OutlinedTextField(
-            value = "",
-            onValueChange = { nt.title = it },
+            value = title,
+            onValueChange = { title = it },
             label = { Text("添加一个标题") },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(16.dp))
-
-        // 视频播放器
-
-        AndroidView(
-            factory = { ctx ->
-                VideoView(ctx).apply {
-                    val mediaController = MediaController(ctx)
-                    mediaController.setAnchorView(this)
-                    setMediaController(mediaController)
-                    setVideoURI(Uri.parse(addr))
-                    requestFocus()
-                    start()
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(350.dp) // 设置视频播放器的高度
-        )
-
+        VideoPreview(addr = Uri.parse(addr))
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = {
-            nt.content = addr
-            nt.previewImage = frameaddress
+            nt.title = title
             viewmodel.insert_nt(nt)
+            navi.navigate("notes")
         }) {
             Text("确认")
         }
     }
-    }
-
-
+}
 @Composable
 fun addnotescreen(navi:NavController) {
     var title by remember { mutableStateOf("") }

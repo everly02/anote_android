@@ -107,4 +107,7 @@ dependencies {
     // Coroutine支持的LiveData
     implementation ("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+    implementation("androidx.media3:media3-exoplayer:1.3.0")
+    implementation("androidx.media3:media3-exoplayer-dash:1.3.0")
+    implementation("androidx.media3:media3-ui:1.3.0")
 }

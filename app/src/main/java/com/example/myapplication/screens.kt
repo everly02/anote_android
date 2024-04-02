@@ -1,17 +1,12 @@
 package com.example.myapplication
 
 
-import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Activity
+import android.app.Activity.RESULT_OK
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
-import android.net.Uri
 import android.provider.MediaStore
-import android.provider.Settings
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -29,9 +24,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -48,7 +41,6 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -56,9 +48,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -93,64 +82,19 @@ object DatabaseSingleton {
     }
 }
 
-@Composable
-fun PermissionExplanationDialog(showDialog: Boolean, onUpdateShowDialog: (Boolean) -> Unit) {
-    val context = LocalContext.current
-
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                // 用户点击对话框外部时触发，更新对话框显示状态
-                onUpdateShowDialog(false)
-            },
-            title = {
-                Text(text = "权限请求")
-            },
-            text = {
-                Text("我们需要照相机权限来继续。请在设置中授权。")
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        // 导航到应用设置页面
-                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                            data = Uri.fromParts("package", context.packageName, null)
-                        }
-                        context.startActivity(intent)
-                        onUpdateShowDialog(false) // 关闭对话框
-                    }
-                ) {
-                    Text("去设置")
-                }
-            },
-            dismissButton = {
-                Button(onClick = { onUpdateShowDialog(false) }) {
-                    Text("取消")
-                }
-            }
-        )
-    }
-}
-
-
-fun hasCameraPermission(context: Context): Boolean {
-    return ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.CAMERA
-    ) == PackageManager.PERMISSION_GRANTED
-}
-
-
 @SuppressLint("QueryPermissionsNeeded")
 @Composable
 fun NotesScreen(nav:NavController) {
-    // 使用 LiveData 的扩展函数 observeAsState 来观察 LiveData 对象
-
-    var showDialog by remember { mutableStateOf(false) }
-    val items = listOf("拍摄", "选择文件") // 选项列表
-
     val context = LocalContext.current
-
+    val startForResult = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val videoUri = result.data?.data // 获取视频URI
+            videoUri?.let {
+                // 导航并传递URI
+                nav.navigate("addv/${videoUri}")
+            }
+        }
+    }
     val noteViewModel: NoteViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @SuppressLint("SuspiciousIndentation")
@@ -165,11 +109,7 @@ fun NotesScreen(nav:NavController) {
             }
         }
     )
-    val db = DatabaseSingleton.getDatabase(context)
-    val noteDao = db.noteDao()
-
     val notes by noteViewModel.unarchivedNotes.observeAsState(initial = emptyList())
-
     Scaffold(
         bottomBar = {
             BottomAppBar(
@@ -178,7 +118,12 @@ fun NotesScreen(nav:NavController) {
                     IconButton(onClick = { nav.navigate("addr") }) {
                         Icon(Icons.Default.Mic, contentDescription = "Record")
                     }
-                    IconButton(onClick = { showDialog = true }) {
+                    IconButton(onClick = {
+                        val intent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
+                        if (intent.resolveActivity(context.packageManager) != null) {
+                            startForResult.launch(intent)
+                        }
+                    }) {
                         Icon(Icons.Default.Videocam, contentDescription = "Video")
                     }
                     IconButton(onClick = {  }) {
@@ -222,89 +167,8 @@ fun NotesScreen(nav:NavController) {
                 }
             }
         }
-
-    }
-    var addtitle = remember {
-        mutableStateOf(false)
     }
 
-    var showpermissiondia= remember { mutableStateOf(false)}
-    if (showDialog) {
-
-
-        var vaddress=""
-        val videoCaptureLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.StartActivityForResult()
-        ) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                Log.d("OKOKOKOKOKOKOKOK","YEEEEEEEEEEEEEEEEE")
-                val videoUri: Uri? = result.data?.data
-                vaddress = videoUri.toString()
-                addtitle.value=true
-            }
-            else{
-                Log.d("OKOKOKOKOKOKOKOK","NNONONONONONONONONONO")
-            }
-        }
-
-        val videoIntent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text(text = "请选择") },
-            text = {
-                Column {
-                    items.forEach { item ->
-                        Text(
-                            text = item,
-                            modifier = Modifier
-                                .clickable {
-                                    when (item) {
-                                        "拍摄" -> {
-
-                                            showDialog = false
-                                            if (!hasCameraPermission(context)) {
-                                                // 如果没有相机权限，显示对话框
-                                                showpermissiondia.value = true
-                                            } else {
-                                                if (videoIntent.resolveActivity(context.packageManager) != null) {
-                                                    videoCaptureLauncher.launch(videoIntent)
-                                                    addtitle.value=true
-                                                } else {
-                                                    // 没有找到合适的应用来处理录制
-                                                }
-                                            }
-
-                                        }
-
-                                        "选择文件" -> {
-
-                                        }
-                                    }
-                                    showDialog = false
-                                }
-                                .padding(16.dp), // 增加内边距来调整尺寸
-                            fontSize = 20.sp
-                        )
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                Button(onClick = { showDialog = false }) {
-                    Text("取消")
-                }
-            },
-            properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
-        )
-        if(showpermissiondia.value == true){
-            PermissionExplanationDialog(showDialog = true) {
-            }
-        }
-        if (addtitle.value) {
-            // 当addTitle为true时，渲染addvedioscreen
-            addvedioscreen(addr=vaddress)
-        }
-    }
 }
 @Composable
 fun NoteItem(note: Note,onClick: () -> Unit) {
