@@ -6,6 +6,7 @@ import android.app.Activity.RESULT_OK
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -91,7 +92,8 @@ fun NotesScreen(nav:NavController) {
             val videoUri = result.data?.data // 获取视频URI
             videoUri?.let {
                 // 导航并传递URI
-                nav.navigate("addv/${videoUri}")
+                val uriString = Uri.encode(videoUri.toString())
+                nav.navigate("addv/$uriString")
             }
         }
     }
@@ -186,7 +188,6 @@ fun NoteItem(note: Note,onClick: () -> Unit) {
         Column(modifier = Modifier.padding(16.dp)) {
             when (note.type) {
                 NoteType.VIDEO -> {
-                    val context = LocalContext.current
 
                     val framePath = note.previewImage
                     val bitmap = BitmapFactory.decodeFile(framePath)

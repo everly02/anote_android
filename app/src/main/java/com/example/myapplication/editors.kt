@@ -148,6 +148,7 @@ fun captureFrameAndSave(context: Context, videoUriString: String): Uri? {
     return null
 }
 @Composable
+
 fun addvedioscreen(addr: String, navi: NavHostController){
     var title by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -156,8 +157,8 @@ fun addvedioscreen(addr: String, navi: NavHostController){
     val viewmodel: EditorViewModel = viewModel(
         factory = EditorViewModelFactory(noteDao)
     )
-    val pre_img= captureFrameAndSave(context,addr).toString()
-    var nt = Note(type= NoteType.TEXT,
+    val pre_img= (captureFrameAndSave(context,addr))?.path
+    var nt = Note(type= NoteType.VIDEO,
         content = addr,
         title="",
         previewImage = pre_img,

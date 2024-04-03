@@ -1,5 +1,6 @@
 package com.example.myapplication
 
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -125,8 +126,10 @@ fun MainScreen() {
                 composable("addn"){ addnotescreen(navController) }
                 composable("addv/{uri}",arguments = listOf(navArgument("uri") { type = NavType.StringType })){
                     backStackEntry ->
-                    val videoAddr = backStackEntry.arguments?.getString("uri") ?: ""
-                    addvedioscreen(videoAddr, navController)
+                    val videoUriString = backStackEntry.arguments?.getString("uri")?.let { Uri.decode(it) }
+                    if (videoUriString != null) {
+                        addvedioscreen(videoUriString, navController)
+                    }
                 }
                 composable("note_detail/{id}"){backStackEntry ->
                     val id = backStackEntry.arguments?.getString("id")?.toInt() ?: -1
