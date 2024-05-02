@@ -1,4 +1,4 @@
-package com.example.myapplication.db
+package com.eli.anote.db
 
 import androidx.room.Dao
 import androidx.room.Delete
@@ -29,4 +29,7 @@ interface NoteDao {
 
     @Query("SELECT * FROM notes WHERE is_archived = 0")
     fun getUnarchivedNotes(): Flow<List<Note>>
+
+    @Query("SELECT * FROM notes WHERE is_archived = 1")
+    fun getarchievedNotes(): Flow<List<Note>>
 }

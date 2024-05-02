@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.eli.anote
 
 import android.net.Uri
 import android.os.Build
@@ -33,14 +33,16 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.myapplication.db.Note
+import com.eli.anote.db.Note
+import com.eli.anote.screens.ArchivedScreen
+import com.eli.anote.screens.NotesScreen
+import com.eli.anote.screens.TodoScreen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -64,7 +66,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyApplicationTheme(content: @Composable () -> Unit) {
     MaterialTheme {
@@ -80,7 +81,6 @@ fun MainScreen() {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var string_to_show = remember{ mutableStateOf("笔记") }
-    val sharedViewModel: SharedViewModel = viewModel()
     ModalNavigationDrawer(
         drawerState = drawerState,
 
@@ -128,7 +128,7 @@ fun MainScreen() {
                     backStackEntry ->
                     val videoUriString = backStackEntry.arguments?.getString("uri")?.let { Uri.decode(it) }
                     if (videoUriString != null) {
-                        addvedioscreen(videoUriString, navController)
+                        AddVideoScreen(videoUriString, navController)
                     }
                 }
                 composable("note_detail/{id}"){backStackEntry ->

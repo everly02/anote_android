@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.eli.anote
 import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
@@ -26,8 +26,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavHostController
-import com.example.myapplication.db.Note
-import com.example.myapplication.db.NoteType
+import com.eli.anote.db.Note
+import com.eli.anote.db.NoteType
 
 @Composable
 fun noteviewer(nav:NavHostController,id:Int){
@@ -36,10 +36,10 @@ fun noteviewer(nav:NavHostController,id:Int){
     val noteDao = db.noteDao()
     val coroutineScope = rememberCoroutineScope()
     val viewModel: EditorViewModel = viewModel(factory = EditorViewModelFactory(noteDao))
-    // 使用LaunchedEffect启动协程调用挂起函数
+
     var note by remember { mutableStateOf<Note?>(null) }
     LaunchedEffect(key1 = id) {
-        note = viewModel.getNoteById(id) // 确保这是在viewModel内部合适地处理
+        note = viewModel.getNoteById(id)
     }
 
     Column(modifier = Modifier.padding(16.dp),

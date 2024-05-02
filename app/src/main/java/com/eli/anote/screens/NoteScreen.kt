@@ -1,19 +1,19 @@
-package com.example.myapplication
-
+package com.eli.anote.screens
 
 import android.annotation.SuppressLint
-import android.app.Activity.RESULT_OK
-import android.content.Context
+import android.app.Activity
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,11 +35,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -47,8 +46,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -56,39 +55,39 @@ import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.room.Room
-import com.example.myapplication.db.AppDatabase
-import com.example.myapplication.db.Note
-import com.example.myapplication.db.NoteDao
-import com.example.myapplication.db.NoteType
 
-class NoteViewModel(noteDao: NoteDao) : ViewModel() {
+import com.eli.anote.db.Note
+import com.eli.anote.db.NoteDao
+import com.eli.anote.db.NoteType
+import kotlinx.coroutines.launch
+
+class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
     val unarchivedNotes: LiveData<List<Note>> = noteDao.getUnarchivedNotes().asLiveData(viewModelScope.coroutineContext)
-
-}
-
-object DatabaseSingleton {
-    private var INSTANCE: AppDatabase? = null
-
-    fun getDatabase(context: Context): AppDatabase {
-        if (INSTANCE == null) {
-            synchronized(AppDatabase::class) {
-                INSTANCE = Room.databaseBuilder(context.applicationContext,
-                    AppDatabase::class.java, "main_database.db")
-                    .fallbackToDestructiveMigration() // 在版本更新丢失数据时使用
-                    .build()
-            }
+    val archivedNotes: LiveData<List<Note>> = noteDao.getarchievedNotes().asLiveData(viewModelScope.coroutineContext)
+    fun updateNote(note: Note) {
+        viewModelScope.launch {
+            noteDao.update(note)
         }
-        return INSTANCE!!
+    }
+    suspend fun getnote(id:Int):Note {
+
+        return noteDao.getNoteById(id)
+
+    }
+    fun deleteNote(note: Note) {
+        viewModelScope.launch {
+            noteDao.delete(note)
+        }
     }
 }
 
+
 @SuppressLint("QueryPermissionsNeeded")
 @Composable
-fun NotesScreen(nav:NavController) {
+fun NotesScreen(nav: NavController) {
     val context = LocalContext.current
     val startForResult = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
+        if (result.resultCode == Activity.RESULT_OK) {
             val videoUri = result.data?.data // 获取视频URI
             videoUri?.let {
                 // 导航并传递URI
@@ -105,13 +104,83 @@ fun NotesScreen(nav:NavController) {
                     @Suppress("UNCHECKED_CAST")
                     val db = DatabaseSingleton.getDatabase(context)
                     val noteDao = db.noteDao()
-                        return NoteViewModel(noteDao) as T
+                    return NoteViewModel(noteDao) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
         }
     )
     val notes by noteViewModel.unarchivedNotes.observeAsState(initial = emptyList())
+    var showdialog = remember{ mutableStateOf(false) }
+    var dia_title = remember {
+        mutableStateOf("")
+    }
+    var nt = remember {
+        mutableStateOf<Note?>(null)
+    }
+
+    val hasPermissions = remember { mutableStateOf(false) }
+
+    // Launcher for camera permissions
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        hasPermissions.value = permissions.values.all { it }
+        if (hasPermissions.value) {
+            // Permissions granted, launch camera
+            val intent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
+            if (intent.resolveActivity(context.packageManager) != null) {
+                startForResult.launch(intent)
+            }
+        }
+    }
+
+    if (showdialog.value) {
+        remember {
+            mutableStateOf<Note?>(null)
+        }
+        Dialog(onDismissRequest = { showdialog.value = false }) {
+
+            Card {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = "选择操作", style = MaterialTheme.typography.headlineSmall)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(onClick = {
+                        nt.value?.let { currentNote ->
+                            val updatedNote = currentNote.copy(isArchived = true)
+
+                            nt.value = updatedNote
+
+                            noteViewModel.updateNote(updatedNote)
+                        }
+                        showdialog.value = false // 关闭对话框
+                    }) {
+                        Text("归档",style = MaterialTheme.typography.headlineSmall)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(onClick = {
+                        nt.value?.let{
+
+                            noteViewModel.deleteNote(nt.value!!)
+                        }
+                        showdialog.value = false // 关闭对话框
+                    }) {
+                        Text("删除", style = MaterialTheme.typography.headlineSmall)
+                    }
+                }
+
+                TextButton(
+                    onClick = { showdialog.value = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+
+                    ) {
+                    Text("取消")
+                }
+            }
+        }
+    }
     Scaffold(
         bottomBar = {
             BottomAppBar(
@@ -121,14 +190,24 @@ fun NotesScreen(nav:NavController) {
                         Icon(Icons.Default.Mic, contentDescription = "Record")
                     }
                     IconButton(onClick = {
-                        val intent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
-                        if (intent.resolveActivity(context.packageManager) != null) {
-                            startForResult.launch(intent)
+                        if (!hasPermissions.value) {
+                            permissionLauncher.launch(
+                                arrayOf(
+                                    android.Manifest.permission.CAMERA,
+                                    android.Manifest.permission.READ_MEDIA_VIDEO
+                                )
+                            )
+                        } else {
+
+                            val intent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
+                            if (intent.resolveActivity(context.packageManager) != null) {
+                                startForResult.launch(intent)
+                            }
                         }
                     }) {
                         Icon(Icons.Default.Videocam, contentDescription = "Video")
                     }
-                    IconButton(onClick = {  }) {
+                    IconButton(onClick = { }) {
                         Icon(Icons.Default.Notifications, contentDescription = "Alert")
                     }
                 },
@@ -161,28 +240,37 @@ fun NotesScreen(nav:NavController) {
                     .padding(innerPadding)
             ) {
                 items(notes) { note ->
-
-                    NoteItem(note){
-                        val i=note.id
-                        nav.navigate("note_detail/$i")
-                    }
+                    dia_title.value = note.title
+                    NoteItem(note,
+                        onClick = {
+                            val i = note.id
+                            nav.navigate("note_detail/$i")
+                        },
+                        onLongClick = {
+                            showdialog.value = true
+                            nt.value=note
+                        })
                 }
             }
         }
     }
 
 }
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun NoteItem(note: Note,onClick: () -> Unit) {
+fun NoteItem(note: Note, onClick: () -> Unit, onLongClick: ()->Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .clickable { onClick() },
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
 
     ){
         Column(modifier = Modifier.padding(16.dp)) {
@@ -211,52 +299,3 @@ fun NoteItem(note: Note,onClick: () -> Unit) {
         }
     }
 }
-@SuppressLint("RememberReturnType")
-@Composable
-fun TodoScreen(nav:NavController) {
-    val todos = remember { mutableStateListOf<String>() }
-    val textState = remember { mutableStateOf(TextFieldValue()) }
-
-    Scaffold(
-        bottomBar = {
-            BottomAppBar(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                actions = {},
-                floatingActionButton = {
-                    FloatingActionButton(
-                        onClick = {
-                            if (textState.value.text.isNotBlank()) {
-                                todos.add(textState.value.text)
-                                textState.value = TextFieldValue("") // 清空输入框
-                            }
-                        },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
-                    ) {
-                        Icon(Icons.Filled.Add, "Add")
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            TextField(
-                value = textState.value,
-                onValueChange = { textState.value = it },
-                label = { Text("Add a todo") }
-            )
-            LazyColumn {
-                items(todos) { todo ->
-                    Text(todo, modifier = Modifier.padding(8.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ArchivedScreen(nav:NavController) {
-    Text("已归档内容", modifier = Modifier.padding(16.dp))
-}
-
-

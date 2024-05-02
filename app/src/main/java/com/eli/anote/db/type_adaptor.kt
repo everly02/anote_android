@@ -1,7 +1,6 @@
-package com.example.myapplication.db
+package com.eli.anote.db
 
 import androidx.room.TypeConverter
-import com.example.myapplication.db.NoteType
 
 class Converters {
     @TypeConverter

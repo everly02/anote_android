@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.eli.anote
 //noinspection UsingMaterialAndMaterial3Libraries
 //noinspection UsingMaterialAndMaterial3Libraries
 //noinspection UsingMaterialAndMaterial3Libraries
@@ -49,9 +49,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
-import com.example.myapplication.db.Note
-import com.example.myapplication.db.NoteDao
-import com.example.myapplication.db.NoteType
+import com.eli.anote.db.Note
+import com.eli.anote.db.NoteDao
+import com.eli.anote.db.NoteType
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
@@ -147,48 +147,46 @@ fun captureFrameAndSave(context: Context, videoUriString: String): Uri? {
     }
     return null
 }
+
 @Composable
-
-fun addvedioscreen(addr: String, navi: NavHostController){
-    var title by remember { mutableStateOf("") }
+fun AddVideoScreen(addr: String, navi: NavHostController) {
     val context = LocalContext.current
-    val db = DatabaseSingleton.getDatabase(context)
-    val noteDao = db.noteDao()
-    val viewmodel: EditorViewModel = viewModel(
-        factory = EditorViewModelFactory(noteDao)
-    )
-    val pre_img= (captureFrameAndSave(context,addr))?.path
-    var nt = Note(type= NoteType.VIDEO,
-        content = addr,
-        title="",
-        previewImage = pre_img,
-        isArchived=false)
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        OutlinedTextField(
-            value = title,
-            onValueChange = { title = it },
-            label = { Text("添加一个标题") },
-            modifier = Modifier.fillMaxWidth()
+        var title by remember { mutableStateOf("") }
+        val db = DatabaseSingleton.getDatabase(context)
+        val noteDao = db.noteDao()
+        val viewModel: EditorViewModel = viewModel(
+            factory = EditorViewModelFactory(noteDao)
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        VideoPreview(addr = Uri.parse(addr))
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = {
-            nt.title = title
-            viewmodel.insert_nt(nt)
-            navi.navigate("notes")
-        }) {
-            Text("确认")
+        val pre_img = (captureFrameAndSave(context, addr))?.path
+        var note = Note(type= NoteType.VIDEO,
+            content = addr,
+            title = "",
+            previewImage = pre_img,
+            isArchived = false)
+
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = { Text("添加一个标题") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            VideoPreview(addr = Uri.parse(addr))
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = {
+                note.title = title
+                viewModel.insert_nt(note)
+                navi.navigate("notes")
+            }) {
+                Text("确认")
+            }
         }
-    }
+
 }
 @Composable
 fun addnotescreen(navi:NavController) {
@@ -348,6 +346,7 @@ fun VideoPlayer(context: Context, videoUri: String) {
         }
     )
 }
+
 
 
 

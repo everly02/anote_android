@@ -5,12 +5,12 @@ plugins {
 }
 
 android {
-    namespace = "com.example.myapplication"
+    namespace = "com.eli.anote"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.myapplication"
-        minSdk = 24
+        applicationId = "com.eli.anote"
+        minSdk = 27
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -89,7 +89,6 @@ dependencies {
 
     val room_version = "2.6.1"
 
-
     implementation ("androidx.room:room-runtime:$room_version")
     annotationProcessor("androidx.room:room-compiler:$room_version")
     // To use Kotlin Symbol Processing (KSP)
@@ -110,4 +109,5 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.3.0")
     implementation("androidx.media3:media3-exoplayer-dash:1.3.0")
     implementation("androidx.media3:media3-ui:1.3.0")
+
 }

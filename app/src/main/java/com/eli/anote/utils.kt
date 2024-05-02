@@ -7,6 +7,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.room.Room
+import com.eli.anote.db.AppDatabase
 import java.io.OutputStream
 
 fun captureFrameAndSaveAsImage(context: Context, videoUri: Uri): Uri? {
@@ -40,7 +42,6 @@ fun saveImageToGallery(context: Context, bitmap: Bitmap): Uri? {
             put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
         }
     }
-
     // 插入图片并返回URI
     context.contentResolver?.also { resolver ->
         imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
@@ -52,4 +53,20 @@ fun saveImageToGallery(context: Context, bitmap: Bitmap): Uri? {
     }
 
     return imageUri
+}
+
+object DatabaseSingleton {
+    private var INSTANCE: AppDatabase? = null
+
+    fun getDatabase(context: Context): AppDatabase {
+        if (INSTANCE == null) {
+            synchronized(AppDatabase::class) {
+                INSTANCE = Room.databaseBuilder(context.applicationContext,
+                    AppDatabase::class.java, "main_database.db")
+                    .fallbackToDestructiveMigration() // 在版本更新丢失数据时使用
+                    .build()
+            }
+        }
+        return INSTANCE!!
+    }
 }

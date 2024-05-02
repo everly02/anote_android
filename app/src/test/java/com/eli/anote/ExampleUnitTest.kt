@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.eli.anote
 
 import org.junit.Test
 

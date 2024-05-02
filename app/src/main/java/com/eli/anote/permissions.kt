@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.eli.anote
 
 //noinspection UsingMaterialAndMaterial3Libraries
 //noinspection UsingMaterialAndMaterial3Libraries
