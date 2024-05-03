@@ -153,6 +153,11 @@ fun DrawerItem(label: String, selected: Boolean, onClick: () -> Unit) {
 fun navigateToScreen(route: String, drawerState: DrawerState, scope: CoroutineScope, navController: NavController) {
     scope.launch {
         drawerState.close() // Close the drawer
-        navController.navigate(route) // Navigate
+        navController.navigate(route) {
+            // 清除返回栈到起始目的地，防止按返回键回到前一个页面
+            popUpTo(navController.graph.startDestinationId) {
+                inclusive = true
+            }
+        }
     }
 }

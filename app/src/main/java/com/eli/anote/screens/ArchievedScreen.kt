@@ -2,6 +2,8 @@ package com.eli.anote.screens
 
 import DatabaseSingleton
 import android.annotation.SuppressLint
+import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -25,8 +27,12 @@ import com.eli.anote.db.Note
 
 @Composable
 fun ArchivedScreen(nav: NavController) {
-    val context = LocalContext.current
 
+
+    val context = LocalContext.current
+    BackHandler {
+        (context as? Activity)?.finish()
+    }
     val noteViewModel: NoteViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @SuppressLint("SuspiciousIndentation")

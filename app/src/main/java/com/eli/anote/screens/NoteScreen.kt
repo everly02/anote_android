@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.MediaStore
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -85,7 +86,11 @@ class NoteViewModel(private val noteDao: NoteDao) : ViewModel() {
 @SuppressLint("QueryPermissionsNeeded")
 @Composable
 fun NotesScreen(nav: NavController) {
+
     val context = LocalContext.current
+    BackHandler {
+        (context as? Activity)?.finish()
+    }
     val startForResult = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val videoUri = result.data?.data // 获取视频URI

@@ -1,6 +1,8 @@
 package com.eli.anote.screens
 
 import android.annotation.SuppressLint
+import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -169,6 +171,10 @@ fun TodoScreen(nav: NavController) {
             )
         )
     )
+    val context = LocalContext.current
+    BackHandler {
+        (context as? Activity)?.finish()
+    }
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("All", "Active", "Completed")
